@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Flying Bird Game</title>
+<style>
+  body {
+    margin: 0;
+    overflow: hidden;
+  }
+
+  canvas {
+    background: url('bg.jpg') no-repeat center center/cover;
+    display: block;
+  }
+
+  #videoPopup {
+    display: none;
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    background: rgba(0,0,0,0.9);
+    justify-content: center;
+    align-items: center;
+    z-index: 10;
+  }
+
+  #videoPopup video {
+    width: 80%;
+    border-radius: 12px;
+  }
+</style>
+</head>
+<body>
+  <canvas id="gameCanvas" width="400" height="600"></canvas>
+
+  <div id="videoPopup">
+    <video id="danceVideo" src="dance.mov"></video>
+  </div>
+
+  <script>
+    const canvas = document.getElementById("gameCanvas");
+    const ctx = canvas.getContext("2d");
+
+    const birdImg = new Image();
+    birdImg.src = "bird.png";
+
+    const pipeImg = new Image();
+    pipeImg.src = "pipe.png";
+
+    const flySound = new Audio("song.mp3");
+    const hitSound = new Audio("over.mp3");
+    const endSound = new Audio("end.mp3");
+
+    let bird = { x: 50, y: 150, w: 40, h: 40, gravity: 1.5, lift: -25, velocity: 0 };
+    let pipes = [];
+    let frame = 0;
+    let score = 0;
+    let gameOver = false;
+
+    function resetGame() {
+      bird.y = 150;
+      bird.velocity = 0;
+      pipes = [];
+      frame = 0;
+      score = 0;
+      gameOver = false;
+      loop();
+    }
+
+    function drawBird() {
+      ctx.drawImage(birdImg, bird.x, bird.y, bird.w, bird.h);
+    }
+
+    function drawPipes() {
+      pipes.forEach(pipe => {
+        ctx.drawImage(pipeImg, pipe.x, pipe.y, pipe.w, pipe.h);
+        ctx.drawImage(pipeImg, pipe.x, pipe.y + pipe.h + pipe.gap, pipe.w, pipe.h);
+      });
+    }
+
+    function update() {
+      bird.velocity += bird.gravity;
+      bird.y += bird.velocity;
+
+      if (frame % 90 === 0) {
+        let top = Math.random() * 200 + 50;
+        pipes.push({ x: canvas.width, y: top - 300, w: 60, h: 300, gap: 120 });
+      }
+
+      pipes.forEach(pipe => {
+        pipe.x -= 2;
+        if (
+          bird.x + bird.w > pipe.x &&
+          bird.x < pipe.x + pipe.w &&
+          (bird.y < pipe.y + pipe.h || bird.y + bird.h > pipe.y + pipe.h + pipe.gap)
+        ) {
+          hitSound.play();
+          gameOver = true;
+        }
+
+        if (pipe.x + pipe.w < bird.x && !pipe.passed) {
+          pipe.passed = true;
+          score++;
+          if (score >= 10) {
+            endGame();
+          }
+        }
+      });
+
+      if (bird.y + bird.h > canvas.height || bird.y < 0) {
+        hitSound.play();
+        gameOver = true;
+      }
+
+      pipes = pipes.filter(pipe => pipe.x + pipe.w > 0);
+    }
+
+    function drawScore() {
+      ctx.fillStyle = "white";
+      ctx.font = "24px Arial";
+      ctx.fillText("Score: " + score, 10, 30);
+    }
+
+    function loop() {
+      if (gameOver) return showGameOver();
+
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      drawBird();
+      drawPipes();
+      drawScore();
+      update();
+
+      frame++;
+      requestAnimationFrame(loop);
+    }
+
+    function flap() {
+      bird.velocity = bird.lift;
+      flySound.play();
+    }
+
+    function showGameOver() {
+      ctx.fillStyle = "rgba(0,0,0,0.5)";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.fillStyle = "white";
+      ctx.font = "40px Arial";
+      ctx.fillText("Game Over!", 100, 300);
+      ctx.font = "20px Arial";
+      ctx.fillText("Click to Restart", 130, 340);
+      canvas.onclick = resetGame;
+    }
+
+    function endGame() {
+      gameOver = true;
+      endSound.play();
+      const popup = document.getElementById("videoPopup");
+      const video = document.getElementById("danceVideo");
+      popup.style.display = "flex";
+      video.play();
+      video.onended = () => { popup.style.display = "none"; };
+    }
+
+    canvas.onclick = flap;
+
+    // Start Game
+    loop();
+  </script>
+</body>
+</html>
